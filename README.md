@@ -41,21 +41,23 @@ C:\Cyclevision\2020.10.01\.mp4
 -hwaccel cuda -hwaccel_output_format cuda -y
 
 Explaining Arguments of Blending:
- -i C:\Cyclevision\2020.10.01\Frontview.mp4         -> first Input stored as [0]
- -itsoffset 00:00:01.889                            -> Offsetting the Start of Stream [1] by 01.889 Seconds (since the Videos dont Start at the same time)
- -i C:\Cyclevision\2020.10.01\BackView.mp4          -> second Input stored as [1]
- -filter_complex                                    -> start complex filter which enables you do to crazy things
- [1:v]                                              -> Take Videostream of Video 1
- scale=550:-1,                                      -> Scale Video [1] it to 550*302 Pixels
- pad=1920:1080:                                     -> Keep the size of the Stream of Video [1] on FullHD - this is needed so that the two steams can be blended together (blending needs same Resolution)
- ow-iw-1360:oh-ih-10                                -> put the Scaled video on the Bottomleft Corner with 10px padding (1360 + 550 = 1910 - makes a 10px margin) 
- setsar=sar=1, format=rgba [bs]                     -> set Color preset for blending and store the altered Stream of [1] as [bs]
- [0:v] setsar=sar=1, format=rgba [fb]               -> Set Color Preset for Video [0] and store it as [fb]
- [fb][bs] blend=all_mode=addition:all_opacity=0.7   -> Blend in [bs] on top of [fb] with an opacity of 0.7 = 70%
- -vcodec libx265 -crf 28                            -> Re-Encode Video with x265 Codec with a CRF (quality) setting of 28 - the lower the CRF the higher the Quality
- C:\Cyclevision\2020.10.01\.mp4                     -> Output Path for Operation -> this is the result of the Operation
- -hwaccel cuda -hwaccel_output_format cuda          -> enable ffmpeg to use Nvidia power to increase Speed of operation
- -y                                                 -> Overwrite Output File if it already exists
+Command | Explanation
+------- | -----------
+-i C:\Cyclevision\2020.10.01\Frontview.mp4 | first Input stored as [0]
+ -itsoffset 00:00:01.889 | Offsetting the Start of Stream [1] by 01.889 Seconds (since the Videos dont Start at the same time)
+ -i C:\Cyclevision\2020.10.01\BackView.mp4 | second Input stored as [1]
+ -filter_complex | start complex filter which enables you do to crazy things
+ [1:v] | Take Videostream of Video 1
+ scale=550:-1, | Scale Video [1] it to 550*302 Pixels
+ pad=1920:1080: | Keep the size of the Stream of Video [1] on FullHD - this is needed so that the two steams can be blended together (blending needs same Resolution)
+ ow-iw-1360:oh-ih-10 | put the Scaled video on the Bottomleft Corner with 10px padding (1360 + 550 = 1910 - makes a 10px margin) 
+ setsar=sar=1, format=rgba [bs] | set Color preset for blending and store the altered Stream of [1] as [bs]
+ [0:v] setsar=sar=1, format=rgba [fb] | Set Color Preset for Video [0] and store it as [fb]
+ [fb][bs] blend=all_mode=addition:all_opacity=0.7 | Blend in [bs] on top of [fb] with an opacity of 0.7 = 70%
+ -vcodec libx265 -crf 28 | Re-Encode Video with x265 Codec with a CRF (quality) setting of 28 - the lower the CRF the higher the Quality
+ C:\Cyclevision\2020.10.01\.mp4 | Output Path for Operation -> this is the result of the Operation
+ -hwaccel cuda -hwaccel_output_format cuda | enable ffmpeg to use Nvidia power to increase Speed of operation
+ -y | Overwrite Output File if it already exists
    
 Why use blending instead of Overlay? to be able to use Opacity
 
@@ -70,12 +72,14 @@ After this TXT File has been created I could run the following Command:
 
 ffmpeg.exe -f concat -safe 0 -i parts.txt -c copy C:\Cyclevision\2020.10.01\Frontview.mp4 -y
 
--f concat                                           -> Filter Concatenate -> Add the following Inputs together
--save 0                                             -> No idea what it does
--i parts.txt                                        -> Input the TXT File with the Path to the Video Parts
--c copy                                             -> Tell the System to Copy - i guess
-C:\Cyclevision\2020.10.01\Frontview.mp4             -> Output file
--y                                                  -> Overwrite Output File if it already Exists
+Command | Explanation
+------- | -----------
+-f concat | Filter Concatenate -> Add the following Inputs together
+-save 0 | No idea what it does
+-i parts.txt | Input the TXT File with the Path to the Video Parts
+-c copy | Tell the System to Copy - i guess
+C:\Cyclevision\2020.10.01\Frontview.mp4 | Output file
+-y | Overwrite Output File if it already Exists
 
 ## Get Video Length
 
@@ -85,8 +89,10 @@ Backend and the Frontend video and then offset the Backend stream by those tiny 
 
 ffprobe.exe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 C:\Cyclevision\2020.10.01\Frontview.mp4
 
-ffprobe.exe                                         -> This time I had to use ffprobe.exe and not ffmpeg.exe
--v error                                            -> no idea
--show_entries format=duration                       -> get duration of Video metadata
--of default=noprint_wrappers=1:nokey=1              -> no idea
-C:\Cyclevision\2020.10.01\Frontview.mp4             -> Path to the Videofile I wanted to analyze
+Command | Explanation
+------- | -----------
+ffprobe.exe | This time I had to use ffprobe.exe and not ffmpeg.exe
+-v error | no idea
+-show_entries format=duration | get duration of Video metadata
+-of default=noprint_wrappers=1:nokey=1 | no idea
+C:\Cyclevision\2020.10.01\Frontview.mp4 | Path to the Videofile I wanted to analyze
