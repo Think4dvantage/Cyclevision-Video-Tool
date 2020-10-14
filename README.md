@@ -18,7 +18,8 @@ in the Folder.
 
 # Details of ffmepg Commands
     
-    ## Blending
+## Blending
+
     Example Argument: -i C:\Cyclevision\2020.10.01\Frontview.mp4 -itsoffset 00:00:01.889 -i C:\Cyclevision\2020.10.01\BackView.mp4 -filter_complex "[1:v] scale=550:-1, pad=1920:1080:ow-iw-1360:oh-ih-10, setsar=sar=1, format=rgba [bs]; [0:v] setsar=sar=1, format=rgba [fb]; [fb][bs] blend=all_mode=addition:all_opacity=0.7" -vcodec libx265 -crf 28 C:\Cyclevision\2020.10.01\.mp4 -hwaccel cuda -hwaccel_output_format cuda -y
     Explaining Arguments of Blending:
      -i C:\Cyclevision\2020.10.01\Frontview.mp4        -> first Input stored as [0]
@@ -37,3 +38,8 @@ in the Folder.
      -hwaccel cuda -hwaccel_output_format cuda         -> enable ffmpeg to use Nvidia power to increase Speed of operation
      -y                                               -> Overwrite Output File if it already exists
      Why use blending instead of Overlay? to be able to use Opacity
+
+## Stitching
+
+## Get Video Length
+
