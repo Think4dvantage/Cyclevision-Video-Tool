@@ -16,29 +16,42 @@ function CreateCamVideo($InputFolder)
         #Return the Files collected
         return $out
     }
-    #Get Record Date for Video Output naming
-    $RecordDate = ((get-childitem -Path $InputFolder\* -Include ("F_*"))[0].LastWriteTime).ToString("yyyy-MM-dd")
+    #If Sourcefiles still exist, get RecordDate from Writetime of Source file - if not get RecordDate from any Filename in Folder
+    if((get-childitem -Path $InputFolder\* -Include ("F_*")))
+    {
+        $RecordDate = ((get-childitem -Path $InputFolder\* -Include ("F_*"))[0].LastWriteTime).ToString("yyyy-MM-dd")
+    }
+    else 
+    {
+        $RecordDate = (get-childitem -Path $InputFolder\*)[0].Name.Substring(0,10)
+    }
+    
     #Path to the Txt file containing the Parts for later Stitching
     $InputFilePath = ($InputFolder + "\PartList.txt")
     #Path to the Output of the Stitching of FrontParts
-    $frontOut = ($InputFolder + "\Frontview.mp4")
+    $frontOut = ($InputFolder + "\" + $RecordDate + "-Frontview.mp4")
     #Path to the Output of the Stitching of BackParts
-    $backOut = ($InputFolder + "\BackView.mp4")
+    $backOut = ($InputFolder + "\" + $RecordDate + "-BackView.mp4")
     #Generate Output path for the Blended Video
     $outputpath = ($InputFolder + "\" + $RecordDate + ".mp4")
     #Path to the FFMPEG Binary (needs to be downloaded from ffmpeg)
     $ffmpegPath = "C:\Program Files\ffmpeg\ffmpeg.exe"
     #Path to the FFProbe Binary (in the same download as the ffmpeg download)
     $ffmpegProbePath = "C:\Program Files\ffmpeg\ffprobe.exe"
-    #Trigger createInputFunction and write output to InputFilePath
-    set-content -path $InputFilePath -Value (createInputfile $InputFolder "F")
-    #Stitch together all MP4 Files mentioned in the Input File Path
-    start-process -FilePath $ffmpegPath -ArgumentList "-f concat -safe 0 -i $InputFilePath -c copy $frontOut -y" -PassThru -Wait -NoNewWindow
-    #Trigger createInputFunction to get Backview Parts and write it to InputFile
-    set-content -path $InputFilePath -Value (createInputfile $InputFolder "B")
-    #Stitch together the Rearview Input Files to one Big video
-    start-process -FilePath $ffmpegPath -ArgumentList "-f concat -safe 0 -i $InputFilePath -c copy $backOut -y" -PassThru -Wait -NoNewWindow
 
+    #Check if Fronview and Backview Video have been Stitched together - if they are skip this Step
+    if(!(test-path -path $frontout) -and !(test-path -path $backout))
+    {
+        #Trigger createInputFunction and write output to InputFilePath
+        set-content -path $InputFilePath -Value (createInputfile $InputFolder "F")
+        #Stitch together all MP4 Files mentioned in the Input File Path
+        start-process -FilePath $ffmpegPath -ArgumentList "-f concat -safe 0 -i $InputFilePath -c copy $frontOut -y" -PassThru -Wait -NoNewWindow
+        #Trigger createInputFunction to get Backview Parts and write it to InputFile
+        set-content -path $InputFilePath -Value (createInputfile $InputFolder "B")
+        #Stitch together the Rearview Input Files to one Big video
+        start-process -FilePath $ffmpegPath -ArgumentList "-f concat -safe 0 -i $InputFilePath -c copy $backOut -y" -PassThru -Wait -NoNewWindow
+    }
+    
     #Get FrontView Video length by using ffprobe - to get an Idea what offset the Videos have (its everytime different) had to use cmd cause start-process wouldn't deliver me the return
     $frontViewSize = cmd /c ([char]34 + "$ffmpegProbePath" + [char]34 + " -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 " + $frontOut)
     #Get Backview Video length to see how much the Backview video needs to be delayed
@@ -55,8 +68,6 @@ function CreateCamVideo($InputFolder)
             Default {$VideoOffset = "2.000" }
         }
     }
-    #Output the Offset - for purposes
-    write-host ("Video Offset is: " + $VideoOffset)
 
     #Prepare FFMPEG Arguments to Blend the two videos together
     $ffmpegarguments = ("-i $frontout -itsoffset 00:00:0$VideoOffset -i $backout -filter_complex " + [char]34 + "[1:v] scale=550:-1, pad=1920:1080:ow-iw-1360:oh-ih-10, setsar=sar=1, format=rgba [bs]; [0:v] setsar=sar=1, format=rgba [fb]; [fb][bs] blend=all_mode=addition:all_opacity=0.7" + [char]34 + " -vcodec libx265 -crf 28 $outputpath -hwaccel cuda -hwaccel_output_format cuda -y")
@@ -82,6 +93,12 @@ function CreateCamVideo($InputFolder)
     
     #Blend FrontView and Backview together
     start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
+
+    #Test if FrontView and Backview Video exist - if they exist delete the Sourcevideos
+    if((test-path -path $frontout) -and (test-path -path $backout))
+    {
+        Remove-Item -Path $InputPath\* -Exclude ($RecordDate + "*")
+    }
 }
 #Define Folder where to search for subfolders with Recordings
 $SurveilanceFolder = "C:\Cyclevision\"
@@ -91,13 +108,13 @@ foreach($folder in (get-childitem -path $SurveilanceFolder))
     #Create path to Folder
     $fp = ($SurveilanceFolder + $folder.Name)
     #Check if partlist.txt already exists - if it exists no Video creation needed
-    if((get-childitem -path $fp).Name -notcontains "Partlist.txt")
+    if((get-childitem -path $fp).Name -like "*Partlist.txt")
     {
-        CreateCamVideo $fp
+        Write-host "There is already a Video"
     }
     else 
     {
-        Write-host "Video already produced - i guess"    
+        CreateCamVideo $fp        
     }
 }
 Write-host "Videocreation has finished" -BackgroundColor green
