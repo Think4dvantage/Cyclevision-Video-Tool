@@ -59,6 +59,11 @@ function CreateCamVideo($InputFolder)
     #Create Value of Offset as a string to use it in the Arguments of the Blending Command
     $VideoOffset = ($FrontViewSize - $BackViewSize).toString("#.###")
     #Make sure VideoOffset has 3 digits after the Comma 
+    if($videoOffset -like "-*")
+    {
+        $videoOffset = "2.000"
+    }
+    
     if($VideoOffset.Length -ne 5)
     {
         switch ($VideoOffset.Length) {
@@ -97,7 +102,7 @@ function CreateCamVideo($InputFolder)
     #Test if FrontView and Backview Video exist - if they exist delete the Sourcevideos
     if((test-path -path $frontout) -and (test-path -path $backout))
     {
-        Remove-Item -Path $InputPath\* -Exclude ($RecordDate + "*")
+        Remove-Item -Path $InputFolder\* -Exclude ($RecordDate + "*") -Recurse -Force
     }
 }
 #Define Folder where to search for subfolders with Recordings
@@ -108,7 +113,8 @@ foreach($folder in (get-childitem -path $SurveilanceFolder))
     #Create path to Folder
     $fp = ($SurveilanceFolder + $folder.Name)
     #Check if partlist.txt already exists - if it exists no Video creation needed
-    if((get-childitem -path $fp).Name -like "*Partlist.txt")
+    $presentFiles = (get-childitem -path $fp).Name
+    if($presentFiles -like "*-Backview.mp4" -and $presentFiles -like "*-Frontview.mp4" -and $presentfiles.count -eq 3 )
     {
         Write-host "There is already a Video"
     }

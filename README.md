@@ -11,6 +11,7 @@ and unpack the ZIP to somewhere.
 Also you will need a Cyclevision helmet to produce the Source Data :-P www.cyclevision.com.au
 
 # Description of what this Script does
+
 This script checks if your C:\Cyclevision Folder has any Subfolders. In those Subfolders the Script expects Cyclevision
 Video Files of the Backview and Frontview named in the Standardnaming of Cyclevision (B_for Backview and F_ Frontview) 
 First of all the Script stitches together the VideoParts of Backview and the Videoparts of Frontview and stores them in 
@@ -49,7 +50,7 @@ Command | Explanation
  -filter_complex | start complex filter which enables you do to crazy things
  [1:v] | Take Videostream of Video 1
  scale=550:-1, | Scale Video [1] it to 550*302 Pixels
- pad=1920:1080: | Keep the size of the Stream of Video [1] on FullHD - this is needed so that the two steams can be blended together (blending needs same Resolution)
+ pad=1920:1080: | Keep the size of the Stream of Video [1] on FullHD - this is needed so that the two streams can be blended together (blending needs same Resolution)
  ow-iw-1360:oh-ih-10 | put the Scaled video on the Bottomleft Corner with 10px padding (1360 + 550 = 1910 - makes a 10px margin) 
  setsar=sar=1, format=rgba [bs] | set Color preset for blending and store the altered Stream of [1] as [bs]
  [0:v] setsar=sar=1, format=rgba [fb] | Set Color Preset for Video [0] and store it as [fb]
@@ -66,6 +67,7 @@ Why use blending instead of Overlay? to be able to use Opacity
 Cyclevision creates a new Videofile every 2 Minutes - ffmpeg has an easy filter to stitch those together to one Video file.
 
 First of all I needed to create a File with all Paths to the Video Parts in correct order in it. But with the Syntax:
+
 file 'path' -> file 'C:\Cyclevision\2020.09.27.1\B_20200927_174741.mp4'
 
 After this TXT File has been created I could run the following Command: 
