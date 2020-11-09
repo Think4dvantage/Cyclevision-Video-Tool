@@ -1,3 +1,23 @@
+param (
+    [Parameter()]
+    [switch]$StitchOnly = $false,
+    [switch]$TransparentVideo = $false,
+    [switch]$SolidVideo = $false,
+    [switch]$DoAll = $false
+)
+#Do the Magic so I dont lose my mind about the Options
+if($stitchonly -eq $false -and $TransparentVideo -eq $false -and $SolidVideo -eq $false -and $doall -eq $false)
+{
+    $SolidVideo = $true
+}
+
+if($doall -eq $true)
+{
+    $StitchOnly = $false
+    $TransparentVideo = $true
+    $SolidVideo = $true
+}
+
 #This Function does all the Work - Stitches Together the Backview and FrontView and then Puts the Backview as smaller overlay to the FrontView Video
 function CreateCamVideo($InputFolder)
 {
@@ -16,6 +36,7 @@ function CreateCamVideo($InputFolder)
         #Return the Files collected
         return $out
     }
+
     #If Sourcefiles still exist, get RecordDate from Writetime of Source file - if not get RecordDate from any Filename in Folder
     if((get-childitem -Path $InputFolder\* -Include ("F_*")))
     {
@@ -33,7 +54,9 @@ function CreateCamVideo($InputFolder)
     #Path to the Output of the Stitching of BackParts
     $backOut = ($InputFolder + "\" + $RecordDate + "-BackView.mp4")
     #Generate Output path for the Blended Video
-    $outputpath = ($InputFolder + "\" + $RecordDate + ".mp4")
+    $outputpath = ($InputFolder + "\" + $RecordDate + "-trans.mp4")
+    #OutputSolid
+    $outputsolid = ($InputFolder + "\" + $RecordDate + "-solid.mp4")
     #Path to the FFMPEG Binary (needs to be downloaded from ffmpeg)
     $ffmpegPath = "C:\Program Files\ffmpeg\ffmpeg.exe"
     #Path to the FFProbe Binary (in the same download as the ffmpeg download)
@@ -50,8 +73,20 @@ function CreateCamVideo($InputFolder)
         set-content -path $InputFilePath -Value (createInputfile $InputFolder "B")
         #Stitch together the Rearview Input Files to one Big video
         start-process -FilePath $ffmpegPath -ArgumentList "-f concat -safe 0 -i $InputFilePath -c copy $backOut -y" -PassThru -Wait -NoNewWindow
+
+        #Test if FrontView and Backview Video exist - if they exist delete the Sourcevideos
+        if((test-path -path $frontout) -and (test-path -path $backout))
+        {
+            Remove-Item -Path $InputFolder\* -Exclude ($RecordDate + "*") -Recurse -Force
+        }
     }
     
+    if($StitchOnly -eq $true)
+    {
+        Write-host "Stitched Videos and Stitch only is active progressing with next Folder!"
+        return 
+    }
+
     #Get FrontView Video length by using ffprobe - to get an Idea what offset the Videos have (its everytime different) had to use cmd cause start-process wouldn't deliver me the return
     $frontViewSize = cmd /c ([char]34 + "$ffmpegProbePath" + [char]34 + " -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 " + $frontOut)
     #Get Backview Video length to see how much the Backview video needs to be delayed
@@ -74,53 +109,59 @@ function CreateCamVideo($InputFolder)
         }
     }
 
-    #Prepare FFMPEG Arguments to Blend the two videos together
-    $ffmpegarguments = ("-i $frontout -itsoffset 00:00:0$VideoOffset -i $backout -filter_complex " + [char]34 + "[1:v] scale=550:-1, pad=1920:1080:ow-iw-1360:oh-ih-10, setsar=sar=1, format=rgba [bs]; [0:v] setsar=sar=1, format=rgba [fb]; [fb][bs] blend=all_mode=addition:all_opacity=0.7" + [char]34 + " -vcodec libx265 -crf 28 $outputpath -hwaccel cuda -hwaccel_output_format cuda -y")
-    
-    #Example Argument: -i C:\Cyclevision\2020.10.01\Frontview.mp4 -itsoffset 00:00:01.889 -i C:\Cyclevision\2020.10.01\BackView.mp4 -filter_complex "[1:v] scale=550:-1, pad=1920:1080:ow-iw-1360:oh-ih-10, setsar=sar=1, format=rgba [bs]; [0:v] setsar=sar=1, format=rgba [fb]; [fb][bs] blend=all_mode=addition:all_opacity=0.7" -vcodec libx265 -crf 28 C:\Cyclevision\2020.10.01\.mp4 -hwaccel cuda -hwaccel_output_format cuda -y
-    #Explaining Arguments of Blending:
-    # -i C:\Cyclevision\2020.10.01\Frontview.mp4        -> first Input stored as [0]
-    # -itsoffset 00:00:01.889                           -> Offsetting the Start of Stream [1] by 01.889 Seconds (since the Videos dont Start at the same time)
-    # -i C:\Cyclevision\2020.10.01\BackView.mp4         -> second Input stored as [1]
-    # -filter_complex                                   -> start complex filter which enables you do to crazy things
-    # [1:v]                                             -> Take Videostream of Video 1
-    # scale=550:-1,                                     -> Scale Video [1] it to 550*302 Pixels
-    # pad=1920:1080:                                    -> Keep the size of the Stream of Video [1] on FullHD - this is needed so that the two steams can be blended together (blending needs same Resolution)
-    # ow-iw-1360:oh-ih-10                               -> put the Scaled video on the Bottomleft Corner with 10px padding (1360 + 550 = 1910 - makes a 10px margin) 
-    # setsar=sar=1, format=rgba [bs]                    -> set Color preset for blending and store the altered Stream of [1] as [bs]
-    # [0:v] setsar=sar=1, format=rgba [fb]              -> Set Color Preset for Video [0] and store it as [fb]
-    # [fb][bs] blend=all_mode=addition:all_opacity=0.7  -> Blend in [bs] on top of [fb] with an opacity of 0.7 = 70%
-    # -vcodec libx265 -crf 28                           -> Re-Encode Video with x265 Codec with a CRF (quality) setting of 28 - the lower the CRF the higher the Quality
-    # C:\Cyclevision\2020.10.01\.mp4                    -> Output Path for Operation -> this is the result of the Operation
-    # -hwaccel cuda -hwaccel_output_format cuda         -> enable ffmpeg to use Nvidia power to increase Speed of operation
-    # -y                                               -> Overwrite Output File if it already exists
-    # Why use blending instead of Overlay? to be able to use Opacity
-    
-    #Blend FrontView and Backview together
-    start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
-
-    #Test if FrontView and Backview Video exist - if they exist delete the Sourcevideos
-    if((test-path -path $frontout) -and (test-path -path $backout))
+    if($TransparentVideo -eq $true -and !(test-path $outputpath))
     {
-        Remove-Item -Path $InputFolder\* -Exclude ($RecordDate + "*") -Recurse -Force
+        #Prepare FFMPEG Arguments to Blend the two videos together
+        $ffmpegarguments = ("-i $frontout -itsoffset 00:00:0$VideoOffset -i $backout -filter_complex " + [char]34 + "[1:v] scale=550:-1, pad=1920:1080:ow-iw-1360:oh-ih-10, setsar=sar=1, format=rgba [bs]; [0:v] setsar=sar=1, format=rgba [fb]; [fb][bs] blend=all_mode=addition:all_opacity=0.7" + [char]34 + " -vcodec libx265 -crf 28 $outputpath -hwaccel cuda -hwaccel_output_format cuda -y")
+        
+        #Example Argument: -i C:\Cyclevision\2020.10.01\Frontview.mp4 -itsoffset 00:00:01.889 -i C:\Cyclevision\2020.10.01\BackView.mp4 -filter_complex "[1:v] scale=550:-1, pad=1920:1080:ow-iw-1360:oh-ih-10, setsar=sar=1, format=rgba [bs]; [0:v] setsar=sar=1, format=rgba [fb]; [fb][bs] blend=all_mode=addition:all_opacity=0.7" -vcodec libx265 -crf 28 C:\Cyclevision\2020.10.01\.mp4 -hwaccel cuda -hwaccel_output_format cuda -y
+        #Explaining Arguments of Blending:
+        # -i C:\Cyclevision\2020.10.01\Frontview.mp4        -> first Input stored as [0]
+        # -itsoffset 00:00:01.889                           -> Offsetting the Start of Stream [1] by 01.889 Seconds (since the Videos dont Start at the same time)
+        # -i C:\Cyclevision\2020.10.01\BackView.mp4         -> second Input stored as [1]
+        # -filter_complex                                   -> start complex filter which enables you do to crazy things
+        # [1:v]                                             -> Take Videostream of Video 1
+        # scale=550:-1,                                     -> Scale Video [1] it to 550*302 Pixels
+        # pad=1920:1080:                                    -> Keep the size of the Stream of Video [1] on FullHD - this is needed so that the two steams can be blended together (blending needs same Resolution)
+        # ow-iw-1360:oh-ih-10                               -> put the Scaled video on the Bottomleft Corner with 10px padding (1360 + 550 = 1910 - makes a 10px margin) 
+        # setsar=sar=1, format=rgba [bs]                    -> set Color preset for blending and store the altered Stream of [1] as [bs]
+        # [0:v] setsar=sar=1, format=rgba [fb]              -> Set Color Preset for Video [0] and store it as [fb]
+        # [fb][bs] blend=all_mode=addition:all_opacity=0.7  -> Blend in [bs] on top of [fb] with an opacity of 0.7 = 70%
+        # -vcodec libx265 -crf 28                           -> Re-Encode Video with x265 Codec with a CRF (quality) setting of 28 - the lower the CRF the higher the Quality
+        # C:\Cyclevision\2020.10.01\.mp4                    -> Output Path for Operation -> this is the result of the Operation
+        # -hwaccel cuda -hwaccel_output_format cuda         -> enable ffmpeg to use Nvidia power to increase Speed of operation
+        # -y                                               -> Overwrite Output File if it already exists
+        # Why use blending instead of Overlay? to be able to use Opacity
+        
+        #Blend FrontView and Backview together
+        start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
+    }
+    
+    if($SolidVideo -eq $true -and !(test-path $outputsolid))
+    {
+        #Prepare FFMPEG Arguments to Blend the two videos together
+        $ffmpegarguments = ("-i $frontout -itsoffset 00:00:0$VideoOffset -i $backout -filter_complex " + [char]34 + "[1:v] scale=550:-1 [bs]; [0][bs] overlay=10:760" + [char]34 + " -vcodec libx265 -crf 28 $outputsolid -hwaccel cuda -hwaccel_output_format cuda -y")
+                     
+        #Blend FrontView and Backview together
+        start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
     }
 }
+
+<#
+    Idea for Further Development:
+    - Add Trimming of Videos - Code as follows:
+     .\ffmpeg.exe -ss 0 -i "D:\Cyclevision\2020.11.08.3\2020-11-08-solid.mp4" -t 510 -vcodec libx265 -crf 28 "D:\Cyclevision\2020.11.08.3\2020-11-08-solid-cut.mp4" -hwaccel cuda -hwaccel_output_format cuda -y 
+    - Add Powershell GUI to give more Control (like in here https://theitbros.com/powershell-gui-for-scripts/)
+    - Use FFMPEG Viewer to preview where video will start and end
+#>
 #Define Folder where to search for subfolders with Recordings
-$SurveilanceFolder = "C:\Cyclevision\"
+$SurveilanceFolder = "D:\Cyclevision\"
 #Foreach Folder in C:\Cyclevision - start the Function to create a Video
 foreach($folder in (get-childitem -path $SurveilanceFolder))
 {
     #Create path to Folder
     $fp = ($SurveilanceFolder + $folder.Name)
-    #Check if partlist.txt already exists - if it exists no Video creation needed
-    $presentFiles = (get-childitem -path $fp).Name
-    if($presentFiles -like "*-Backview.mp4" -and $presentFiles -like "*-Frontview.mp4" -and $presentfiles.count -eq 3 )
-    {
-        Write-host "There is already a Video"
-    }
-    else 
-    {
-        CreateCamVideo $fp        
-    }
+
+    CreateCamVideo $fp
 }
 Write-host "Videocreation has finished" -BackgroundColor green
