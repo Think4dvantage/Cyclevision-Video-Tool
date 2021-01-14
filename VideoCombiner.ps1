@@ -3,12 +3,17 @@ param (
     [switch]$StitchOnly = $false,
     [switch]$TransparentVideo = $false,
     [switch]$SolidVideo = $false,
-    [switch]$DoAll = $false
+    [switch]$DoAll = $false,
+    [switch]$ShortVideo = $false,
+    [int]$StartBegin,
+    [int]$StartEnd,
+    [int]$LandingBegin,
+    [int]$LandingEnd
 )
 #Do the Magic so I dont lose my mind about the Options
-if($stitchonly -eq $false -and $TransparentVideo -eq $false -and $SolidVideo -eq $false -and $doall -eq $false)
+if($stitchonly -eq $false -and $TransparentVideo -eq $false -and $SolidVideo -eq $false -and $doall -eq $false -and $ShortVideo -eq $false)
 {
-    $SolidVideo = $true
+    $ShortVideo = $true
 }
 
 if($doall -eq $true)
@@ -16,6 +21,7 @@ if($doall -eq $true)
     $StitchOnly = $false
     $TransparentVideo = $true
     $SolidVideo = $true
+    $ShortVideo = $true
 }
 
 #This Function does all the Work - Stitches Together the Backview and FrontView and then Puts the Backview as smaller overlay to the FrontView Video
@@ -57,6 +63,8 @@ function CreateCamVideo($InputFolder)
     $outputpath = ($InputFolder + "\" + $RecordDate + "-trans.mp4")
     #OutputSolid
     $outputsolid = ($InputFolder + "\" + $RecordDate + "-solid.mp4")
+    #OutputShort
+    $outputshort = ($InputFolder + "\" + $RecordDate + "-short.mp4")
     #Path to the FFMPEG Binary (needs to be downloaded from ffmpeg)
     $ffmpegPath = "C:\Program Files\ffmpeg\ffmpeg.exe"
     #Path to the FFProbe Binary (in the same download as the ffmpeg download)
@@ -145,6 +153,38 @@ function CreateCamVideo($InputFolder)
         #Blend FrontView and Backview together
         start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
     }
+
+    if($ShortVideo -eq $true -and !(test-path $outputshort))
+    {
+        if(!$StartBegin -or !$StartEnd -or !$LandingBegin -or !$LandingEnd)
+        {
+            Write-host "Sorry but if you want to create a Short Video you need to Input StartBegin, StartEnd, LandingBegin, LandingEnd for it to Properly Work"
+            return
+        }
+        
+        
+        $ffmpegarguments = ("-i $frontout -i $backout -filter_complex " + [char]34 + "[1]trim="+ ($startBegin-$VideoOffset) + ":" + ($StartEnd-$VideoOffset) +",setpts=PTS-STARTPTS[bs],[bs]scale=550:-1[bso];[0]atrim=" + $StartBegin + ":" + $StartEnd + ",asetpts=PTS-STARTPTS[ap1],[0]trim=" + $StartBegin + ":" + $StartEnd + ",setpts=PTS-STARTPTS[fv],[fv][bso] overlay=10:760[p1],")
+        $parts = 1
+        $Inc = 100
+        $partStart = $StartBegin + $inc
+        do {
+            $parts++
+            $partEnd = $partStart + 15
+            $ffmpegarguments = ($ffmpegarguments + "[0]atrim=" + $partStart + ":" + $PartEnd +",asetpts=PTS-STARTPTS[ap"+ $parts +"]," + "[0]trim=" + $partStart + ":" + $PartEnd +",setpts=PTS-STARTPTS[p"+ $parts +"],")
+            $partStart = $partStart + $Inc
+        } while ($PartStart -lt $LandingBegin)
+        $Parts += 1
+        $ffmpegarguments = ($ffmpegarguments + "[0]atrim=" + $LandingBegin + ":" + $LandingEnd + ",asetpts=PTS-STARTPTS[ap"+ $parts +"],[0]trim=" + $LandingBegin + ":" + $LandingEnd + ",setpts=PTS-STARTPTS[p"+ $parts +"],")
+        $i = 1
+        do {
+            $ffmpegarguments = ($ffmpegarguments + "[p" + $i + "][ap" + $i + "]")
+            $i++ 
+            
+        } while ($i -lt $parts)
+        $ffmpegarguments = ($ffmpegarguments + "[p" + $parts + "][ap" + $parts + "]concat=n=" + $parts + ":v=1:a=1[out][aout]" + [char]34 + " -map " + [char]34 + "[out]" + [char]34 + " -map " + [char]34 + "[aout]" + [char]34 +" $outputshort -hwaccel cuda -hwaccel_output_format cuda -y")
+    
+        start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
+    }
 }
 
 <#
@@ -154,6 +194,7 @@ function CreateCamVideo($InputFolder)
     - Add Powershell GUI to give more Control (like in here https://theitbros.com/powershell-gui-for-scripts/)
     - Use FFMPEG Viewer to preview where video will start and end
 #>
+
 #Define Folder where to search for subfolders with Recordings
 $SurveilanceFolder = "D:\Cyclevision\"
 #Foreach Folder in C:\Cyclevision - start the Function to create a Video
