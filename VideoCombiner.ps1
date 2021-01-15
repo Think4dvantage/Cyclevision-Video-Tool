@@ -76,11 +76,11 @@ function CreateCamVideo($InputFolder)
         #Trigger createInputFunction and write output to InputFilePath
         set-content -path $InputFilePath -Value (createInputfile $InputFolder "F")
         #Stitch together all MP4 Files mentioned in the Input File Path
-        start-process -FilePath $ffmpegPath -ArgumentList "-f concat -safe 0 -i $InputFilePath -c copy $frontOut -y" -PassThru -Wait -NoNewWindow
+        start-process -FilePath $ffmpegPath -ArgumentList "-f concat -safe 0 -i $InputFilePath -c copy -filter:a loudnorm $frontOut -y" -PassThru -Wait -NoNewWindow
         #Trigger createInputFunction to get Backview Parts and write it to InputFile
         set-content -path $InputFilePath -Value (createInputfile $InputFolder "B")
         #Stitch together the Rearview Input Files to one Big video
-        start-process -FilePath $ffmpegPath -ArgumentList "-f concat -safe 0 -i $InputFilePath -c copy $backOut -y" -PassThru -Wait -NoNewWindow
+        start-process -FilePath $ffmpegPath -ArgumentList "-f concat -safe 0 -i $InputFilePath -c copy -filter:a loudnorm $backOut -y" -PassThru -Wait -NoNewWindow
 
         #Test if FrontView and Backview Video exist - if they exist delete the Sourcevideos
         if((test-path -path $frontout) -and (test-path -path $backout))
@@ -120,7 +120,7 @@ function CreateCamVideo($InputFolder)
     if($TransparentVideo -eq $true -and !(test-path $outputpath))
     {
         #Prepare FFMPEG Arguments to Blend the two videos together
-        $ffmpegarguments = ("-i $frontout -itsoffset 00:00:0$VideoOffset -i $backout -filter_complex " + [char]34 + "[1:v] scale=550:-1, pad=1920:1080:ow-iw-1360:oh-ih-10, setsar=sar=1, format=rgba [bs]; [0:v] setsar=sar=1, format=rgba [fb]; [fb][bs] blend=all_mode=addition:all_opacity=0.7" + [char]34 + " -vcodec libx265 -crf 28 $outputpath -hwaccel cuda -hwaccel_output_format cuda -y")
+        $ffmpegarguments = ("-i $frontout -itsoffset 00:00:0$VideoOffset -i $backout -filter_complex " + [char]34 + "[1:v] scale=550:-1, pad=1920:1080:ow-iw-1360:oh-ih-10, setsar=sar=1, format=rgba [bs]; [0:v] setsar=sar=1, format=rgba [fb]; [fb][bs] blend=all_mode=addition:all_opacity=0.7" + [char]34 + " -filter:a loudnorm -vcodec libx265 -crf 28 $outputpath -hwaccel cuda -hwaccel_output_format cuda -y")
         
         #Example Argument: -i C:\Cyclevision\2020.10.01\Frontview.mp4 -itsoffset 00:00:01.889 -i C:\Cyclevision\2020.10.01\BackView.mp4 -filter_complex "[1:v] scale=550:-1, pad=1920:1080:ow-iw-1360:oh-ih-10, setsar=sar=1, format=rgba [bs]; [0:v] setsar=sar=1, format=rgba [fb]; [fb][bs] blend=all_mode=addition:all_opacity=0.7" -vcodec libx265 -crf 28 C:\Cyclevision\2020.10.01\.mp4 -hwaccel cuda -hwaccel_output_format cuda -y
         #Explaining Arguments of Blending:
@@ -148,11 +148,12 @@ function CreateCamVideo($InputFolder)
     if($SolidVideo -eq $true -and !(test-path $outputsolid))
     {
         #Prepare FFMPEG Arguments to Blend the two videos together
-        $ffmpegarguments = ("-i $frontout -itsoffset 00:00:0$VideoOffset -i $backout -filter_complex " + [char]34 + "[1:v] scale=550:-1 [bs]; [0][bs] overlay=10:760" + [char]34 + " -vcodec libx265 -crf 28 $outputsolid -hwaccel cuda -hwaccel_output_format cuda -y")
+        $ffmpegarguments = ("-i $frontout -itsoffset 00:00:0$VideoOffset -i $backout -filter_complex " + [char]34 + "[1:v] scale=550:-1 [bs]; [0][bs] overlay=10:760" + [char]34 + " -filter:a loudnorm -vcodec libx265 -crf 28 $outputsolid -hwaccel cuda -hwaccel_output_format cuda -y")
                      
         #Blend FrontView and Backview together
         start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
     }
+
 
     if($ShortVideo -eq $true -and !(test-path $outputshort))
     {
@@ -161,6 +162,30 @@ function CreateCamVideo($InputFolder)
             Write-host "Sorry but if you want to create a Short Video you need to Input StartBegin, StartEnd, LandingBegin, LandingEnd for it to Properly Work"
             return
         }
+        
+        <#
+            Sample Arguments of this Command and Its Explanation
+
+            -i D:\Cyclevision\2021.01.08.1\2021-01-08-Frontview.mp4             -> Input [0] 
+            -itsoffset 00:00:02.000                                             -> Offset Input [1] by 2 Seconds (cause the backend Video has an Offset)
+            -i D:\Cyclevision\2021.01.08.1\2021-01-08-Backview.mp4              -> Input [1]
+            -filter_complex "
+                [1]trim=38:63,setpts=PTS-STARTPTS[bs],                          -> Cut out a part of [1] and store it in [BS]
+                [bs]scale=550:-1[bso],                                          -> Resize [bs] so that it will have the right size for Overlay and store it in [bso]                 
+                [0]atrim=40:65,asetpts=PTS-STARTPTS[ap1],                       -> Cut out the Audio part of [0] and store it in [ap1]
+                [0]trim=40:65,setpts=PTS-STARTPTS[bv],                          -> Cut out the Video part of [0] and store it in [bv]
+                [bv][obs] overlay=10:760[p1],                                   -> Overlay [BSO] over [BV] and store it in [p1]
+                [0]atrim=160:175,asetpts=PTS-STARTPTS[ap2],                     -> Trim Audio from [0] and store it in [ap2]       
+                [0]trim=160:175,setpts=PTS-STARTPTS[p2],                        -> Trim Video from [0] and store it in [p2]
+                [p1][ap1][p2][ap2]concat=n=15:v=1:a=1[out][aout]"               -> Combine Videoparts together and store it in [out] combine Audio parts and store it in [aout]
+            -map "[out]"                                                        -> Map [out] to Output
+            -map "[aout]" D:\Cyclevision\2021.01.08.1\2021-01-08-SHORT.mp4      -> Map [aout] to Output
+            -filter:a loudnorm                                                  -> Apply Audio filter to break down peaks
+            -hwaccel cuda                                                       -> Use CUDA as hwaccel
+            -hwaccel_output_format cuda                                         -> Use CUDA 
+            -y                                                                  -> Overwrite existing Outputfile
+        #>
+       
         
         
         $ffmpegarguments = ("-i $frontout -i $backout -filter_complex " + [char]34 + "[1]trim="+ ($startBegin-$VideoOffset) + ":" + ($StartEnd-$VideoOffset) +",setpts=PTS-STARTPTS[bs],[bs]scale=550:-1[bso];[0]atrim=" + $StartBegin + ":" + $StartEnd + ",asetpts=PTS-STARTPTS[ap1],[0]trim=" + $StartBegin + ":" + $StartEnd + ",setpts=PTS-STARTPTS[fv],[fv][bso] overlay=10:760[p1],")
@@ -181,7 +206,7 @@ function CreateCamVideo($InputFolder)
             $i++ 
             
         } while ($i -lt $parts)
-        $ffmpegarguments = ($ffmpegarguments + "[p" + $parts + "][ap" + $parts + "]concat=n=" + $parts + ":v=1:a=1[out][aout]" + [char]34 + " -map " + [char]34 + "[out]" + [char]34 + " -map " + [char]34 + "[aout]" + [char]34 +" $outputshort -hwaccel cuda -hwaccel_output_format cuda -y")
+        $ffmpegarguments = ($ffmpegarguments + "[p" + $parts + "][ap" + $parts + "]concat=n=" + $parts + ":v=1:a=1[out][aout]" + [char]34 + " -map " + [char]34 + "[out]" + [char]34 + " -map " + [char]34 + "[aout]" + [char]34 +" $outputshort -filter:a loudnorm -hwaccel cuda -hwaccel_output_format cuda -y")
     
         start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
     }
