@@ -7,13 +7,13 @@ $main_form.Height = 1000
 $main_form.AutoSize = $true
 
 
-$FileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{ InitialDirectory = [Environment]::GetFolderPath('Desktop') }
 
 
 $Label0 = New-Object System.Windows.Forms.Label
 $Label0.Text = "Path to Frontview File"
 $Label0.Location  = New-Object System.Drawing.Point(0,10)
 $Label0.AutoSize = $true
+
 
 $TextBox0 = New-Object System.Windows.Forms.TextBox
 $TextBox0.Location  = New-Object System.Drawing.Point(200,10)
@@ -88,6 +88,6 @@ $main_form.Controls.Add($TextBox1)
 $main_form.Controls.Add($TextBox2)
 $main_form.Controls.Add($TextBox3)
 $main_form.Controls.Add($TextBox4)
-$main_form.Controls.
+$main_form.Controls.Add($FileBrowser)
 $main_form.ShowDialog()
 

@@ -1,14 +1,15 @@
 param (
     [Parameter()]
-    [switch]$StitchOnly = $false,
-    [switch]$TransparentVideo = $false,
-    [switch]$SolidVideo = $false,
-    [switch]$DoAll = $false,
-    [switch]$ShortVideo = $false,
-    [int]$StartBegin,
-    [int]$StartEnd,
-    [int]$LandingBegin,
-    [int]$LandingEnd
+    [switch]$StitchOnly = $false,           # Only Stitch together Videoparts
+    [switch]$TransparentVideo = $false,     # Only create a Video with front and Backview in Solid
+    [switch]$SolidVideo = $false,           # Only create a Video with Fron in solid and Backview with Opacity
+    [switch]$DoAll = $false,                # Create all different Video flawers
+    [switch]$ShortVideo = $false,           # Create a short video with Start, Landing and Video snippets in between
+    [int]$StartBegin,                       # For Short Video: Tell the Video where the Start beginns (in seconds)
+    [int]$StartEnd,                         # For Short Video: Tell the Video where the Start Ends (in seconds)
+    [int]$LandingBegin,                     # For Short Video: Tell the Video where the Landing begins (in Seconds)
+    [int]$LandingEnd,                       # For Short Video: Tell the Video where the Landing ends (in Seconds)
+    [int]$inc = 120                         # For Short Video: Set the Increment of the Video Snippets
 )
 #Do the Magic so I dont lose my mind about the Options
 if($stitchonly -eq $false -and $TransparentVideo -eq $false -and $SolidVideo -eq $false -and $doall -eq $false -and $ShortVideo -eq $false)
@@ -76,11 +77,11 @@ function CreateCamVideo($InputFolder)
         #Trigger createInputFunction and write output to InputFilePath
         set-content -path $InputFilePath -Value (createInputfile $InputFolder "F")
         #Stitch together all MP4 Files mentioned in the Input File Path
-        start-process -FilePath $ffmpegPath -ArgumentList "-f concat -safe 0 -i $InputFilePath -c copy -filter:a loudnorm $frontOut -y" -PassThru -Wait -NoNewWindow
+        start-process -FilePath $ffmpegPath -ArgumentList "-f concat -safe 0 -i $InputFilePath -c copy $frontOut -y" -PassThru -Wait -NoNewWindow
         #Trigger createInputFunction to get Backview Parts and write it to InputFile
         set-content -path $InputFilePath -Value (createInputfile $InputFolder "B")
         #Stitch together the Rearview Input Files to one Big video
-        start-process -FilePath $ffmpegPath -ArgumentList "-f concat -safe 0 -i $InputFilePath -c copy -filter:a loudnorm $backOut -y" -PassThru -Wait -NoNewWindow
+        start-process -FilePath $ffmpegPath -ArgumentList "-f concat -safe 0 -i $InputFilePath -c copy $backOut -y" -PassThru -Wait -NoNewWindow
 
         #Test if FrontView and Backview Video exist - if they exist delete the Sourcevideos
         if((test-path -path $frontout) -and (test-path -path $backout))
@@ -190,7 +191,6 @@ function CreateCamVideo($InputFolder)
         
         $ffmpegarguments = ("-i $frontout -i $backout -filter_complex " + [char]34 + "[1]trim="+ ($startBegin-$VideoOffset) + ":" + ($StartEnd-$VideoOffset) +",setpts=PTS-STARTPTS[bs],[bs]scale=550:-1[bso];[0]atrim=" + $StartBegin + ":" + $StartEnd + ",asetpts=PTS-STARTPTS[ap1],[0]trim=" + $StartBegin + ":" + $StartEnd + ",setpts=PTS-STARTPTS[fv],[fv][bso] overlay=10:760[p1],")
         $parts = 1
-        $Inc = 100
         $partStart = $StartBegin + $inc
         do {
             $parts++
@@ -207,7 +207,10 @@ function CreateCamVideo($InputFolder)
             
         } while ($i -lt $parts)
         $ffmpegarguments = ($ffmpegarguments + "[p" + $parts + "][ap" + $parts + "]concat=n=" + $parts + ":v=1:a=1[out][aout]" + [char]34 + " -map " + [char]34 + "[out]" + [char]34 + " -map " + [char]34 + "[aout]" + [char]34 +" $outputshort -filter:a loudnorm -hwaccel cuda -hwaccel_output_format cuda -y")
-    
+        
+        $VidLength = [timespan]::fromseconds([int]($StartEnd - $StartBegin) + ((($LandingBegin - $StartEnd)/$inc)*15) + ($LandingEnd - $LandingBegin))
+        Write-Host ("The Video will be approximately " + $VidLength.ToString("hh\:mm\:ss") + " Long:")
+
         start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
     }
 }
