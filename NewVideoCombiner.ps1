@@ -13,7 +13,16 @@ function create-Video {
         $LandingBegin,
         $LandingEnd,
         $Increment,
-        $ClipLength
+        $ClipLength,
+        $Szene1,
+        $Szene1Begin,
+        $Szene1End,
+        $Szene2,
+        $Szene2Begin,
+        $Szene2End,
+        $Szene3,
+        $Szene3Begin,
+        $Szene3End
     )
     
     process 
@@ -39,11 +48,11 @@ function create-Video {
         #OutputSolid
         $outputsolid = ($Path + "\" + $Date + "-solid.mp4")
         
-        $StartBegin = ([timespan]$StartBegin).TotalSeconds
-        $StartEnd = ([timespan]$StartEnd).TotalSeconds
-        $LandingBegin = ([timespan]$LandingBegin).TotalSeconds
-        $LandingEnd = ([timespan]$LandingEnd).TotalSeconds
-        $Increment = ([timespan]$Increment).TotalSeconds
+        $StartBegin = [int]([timespan]$StartBegin).TotalSeconds
+        $StartEnd = [int]([timespan]$StartEnd).TotalSeconds
+        $LandingBegin = [int]([timespan]$LandingBegin).TotalSeconds
+        $LandingEnd = [int]([timespan]$LandingEnd).TotalSeconds
+        $Increment = [int]([timespan]$Increment).TotalSeconds
 
         function createInputfile($Path, $View)
         {
@@ -138,54 +147,98 @@ function create-Video {
 
         write-host ("videooffset2 ist: " + $videoOffset)
         write-host "Starting ShortVideo"
+
+
         if($Short -eq $true -and !(test-path $outputshort))
         {
             write-host "got into the Shortvideo"
             if($StartEnd -le $StartBegin -or $LandingEnd -le $LandingBegin)
             {
-                write-host $Date
-                write-host $Path
-                write-host $Stitch
-                write-host $Skip
-                write-host $Short
-                write-host $Solid
-                write-host $Transparent
-                write-host $StartBegin
-                write-host $StartEnd
-                write-host $LandingBegin
-                write-host $LandingEnd
-                write-host $Increment
-                write-host $ClipLength
-
                 Write-host ($Date + " - Check StartBegin, StartEnd and so on")
                 return
             }
             write-host "Starting to Create Arguments"
             $ffmpegarguments = ("-i $frontout -i $backout -filter_complex " + [char]34 + "[1]trim="+ ($startBegin-$VideoOffset) + ":" + ($StartEnd-$VideoOffset) +",setpts=PTS-STARTPTS[bs],[bs]scale=550:-1[bso];[0]atrim=" + $StartBegin + ":" + $StartEnd + ",asetpts=PTS-STARTPTS[ap1],[0]trim=" + $StartBegin + ":" + $StartEnd + ",setpts=PTS-STARTPTS[fv],[fv][bso] overlay=10:760[p1],")
             $parts = 1
+            [int[]]$ClipsBegin = @()
+            [int[]]$ClipsEnd = @()
+            if($Szene1 -eq $true)
+            {
+                $ClipsBegin += [int]([timespan]$Szene1Begin).TotalSeconds
+                $ClipsEnd += [int]([timespan]$Szene1End).TotalSeconds
+                write-host ("Szene 1: " + $ClipsBegin[0] + "-" + $ClipsEnd[0])
+            }
+            if($Szene2 -eq $true)
+            {
+                $ClipsBegin += ([timespan]$Szene2Begin).TotalSeconds
+                $ClipsEnd += ([timespan]$Szene2End).TotalSeconds
+                write-host ("Szene 2: " + $ClipsBegin[1] + "-" + $ClipsEnd[1])
+            }
+            if($Szene3 -eq $true)
+            {
+                $ClipsBegin += [int]([timespan]$Szene3Begin).TotalSeconds
+                $ClipsEnd += [int]([timespan]$Szene3End).TotalSeconds
+                write-host ("Szene 3: " + $ClipsBegin[2] + "-" + $ClipsEnd[2])
+            }
+
+            $ClipsBegin += $LandingBegin
+            $ClipsEnd += $LandingEnd
+            $ClipsBegin += $StartBegin
+            $ClipsEnd += $StartEnd
+            write-host "pre PartInc Parts"
+            write-host $ClipsBegin
+            write-host $ClipsEnd
+            
             $partStart = $StartBegin + $Increment
             write-host "incrementing through parts"
-            do {
-                $parts++
+            do 
+            {
                 $partEnd = $partStart + $CLipLength
-                $ffmpegarguments = ($ffmpegarguments + "[0]atrim=" + $partStart + ":" + $PartEnd +",asetpts=PTS-STARTPTS[ap"+ $parts +"]," + "[0]trim=" + $partStart + ":" + $PartEnd +",setpts=PTS-STARTPTS[p"+ $parts +"],")
-                $partStart = $partStart + $Increment
+                $ClipOK = $true
+                for ($i = 0; $i -lt $ClipsBegin.Count; $i++) 
+                {
+                    if($PartStart -lt ($ClipsBegin[$i] -30) -or $PartStart -gt ($ClipsEnd[$i] + 30) -or $PartEnd -lt ($ClipsBegin[$i] - 30) -or $PartEnd -gt ($ClipsEnd[$i] + 30))
+                    {
+                        
+                    }
+                    else
+                    {
+                        $ClipOK = $false
+                    }
+                }
+                if($ClipOK -eq $true)
+                {
+                    $ClipsBegin += $PartStart
+                    $ClipsEnd += $PartEnd
+                    Write-Host ("Partstart: " + $PartStart + " PartEnd: " + $partEnd)
+                }
+                $partStart = $partStart + $Increment  
             } while ($PartStart -lt $LandingBegin)
-            $Parts += 1
+            
+            $ClipsBegin = $ClipsBegin | Sort-Object
+            $ClipsEnd = $ClipsEnd | Sort-Object
+            
+            write-host $ClipsBegin
+            write-host $ClipsEnd
+            
+            $PartCounter = 2
+            for ($i = 1; $i -lt $ClipsBegin.Count; $i++) 
+            {
+                $ffmpegarguments = ($ffmpegarguments + "[0]atrim=" + $ClipsBegin[$i] + ":" + $ClipsEnd[$i] +",asetpts=PTS-STARTPTS[ap"+ $PartCounter +"]," + "[0]trim=" + $ClipsBegin[$i] + ":" + $ClipsEnd[$i] +",setpts=PTS-STARTPTS[p"+ $PartCounter +"],")
+                $PartCounter++
+            }
             write-host "Parts created, create end of Video"
-            $ffmpegarguments = ($ffmpegarguments + "[0]atrim=" + $LandingBegin + ":" + $LandingEnd + ",asetpts=PTS-STARTPTS[ap"+ $parts +"],[0]trim=" + $LandingBegin + ":" + $LandingEnd + ",setpts=PTS-STARTPTS[p"+ $parts +"],")
-            $i = 1
-            do {
+            for ($i = 1; $i -lt ($ClipsBegin.Count + 1); $i++) 
+            {
                 $ffmpegarguments = ($ffmpegarguments + "[p" + $i + "][ap" + $i + "]")
-                $i++ 
-                
-            } while ($i -lt $parts)
-            $ffmpegarguments = ($ffmpegarguments + "[p" + $parts + "][ap" + $parts + "]concat=n=" + $parts + ":v=1:a=1[out][aout]" + [char]34 + " -map " + [char]34 + "[out]" + [char]34 + " -map " + [char]34 + "[aout]" + [char]34 +" $outputshort -filter:a loudnorm -hwaccel cuda -hwaccel_output_format cuda -y")
+            }
+            $ffmpegarguments = ($ffmpegarguments + "concat=n=" + $ClipsBegin.Count + ":v=1:a=1[out][aout]" + [char]34 + " -map " + [char]34 + "[out]" + [char]34 + " -map " + [char]34 + "[aout]" + [char]34 +" $outputshort -filter:a loudnorm -hwaccel cuda -hwaccel_output_format cuda -y")
             
             $VidLength = [timespan]::fromseconds([int]($StartEnd - $StartBegin) + ((($LandingBegin - $StartEnd)/$Increment)*15) + ($LandingEnd - $LandingBegin))
-            Write-Host ($Date + " - The Video will be approximately " + $VidLength.ToString("hh\:mm\:ss") + " Long:")
-
+            Write-Host ($Date + " - The Video will be approximately " + $VidLength.ToString("hh\:mm\:ss") + " Long:") -BackgroundColor Yellow -ForegroundColor Black
+            write-host $ffmpegArguments
             start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
+            write-host "ShortVideo has ended" -BackgroundColor Green -ForegroundColor Black
         }#End ShortVideo
         
 

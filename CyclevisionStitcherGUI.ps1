@@ -86,14 +86,14 @@ foreach($Folder in $VideoFolders)
 
 $main_form = New-Object System.Windows.Forms.Form
 $GroupLocation = 0
-$GroupHeight = 200
+$GroupHeight = 310
 
 foreach($folder in $VideoFolders)
 {
     $tag = $folder.Name.Replace(".","")
     $GPVideo = New-Object System.Windows.Forms.GroupBox
     $GPVideo.Name = ("GP" + $tag)
-    $GPVideo.Width = 600
+    $GPVideo.Width = 550
     $GPVideo.Height = $GroupHeight
     $GPVideo.Font = New-Object System.Drawing.Font("Times New Roman",12)
     $GPVideo.Location = New-Object System.Drawing.Point(3,$GroupLocation)
@@ -108,14 +108,14 @@ foreach($folder in $VideoFolders)
     create-Checkbox -Name "Skip" -fromLeft 3 -FromTop 40 -AddTo $GPVideo
     create-Label -Text "Skip this" -FromLeft 20 -FromTop 40 -AddTo $GPVideo
     
-    create-Checkbox -Name "Short" -FromLeft 150 -FromTop 40 -AddTo $GPVideo
-    create-Label -Text "Short Video" -fromLeft 170 -fromTop 40 -AddTo $GPVideo
+    create-Checkbox -Name "Short" -FromLeft 140 -FromTop 40 -AddTo $GPVideo
+    create-Label -Text "Short Video" -fromLeft 160 -fromTop 40 -AddTo $GPVideo
     
-    create-Checkbox -Name "Solid" -FromLeft 280 -FromTop 40 -AddTo $GPVideo
-    create-Label -Text "Solid Video" -fromLeft 300 -fromTop 40 -AddTo $GPVideo
+    create-Checkbox -Name "Solid" -FromLeft 270 -FromTop 40 -AddTo $GPVideo
+    create-Label -Text "Solid Video" -fromLeft 290 -fromTop 40 -AddTo $GPVideo
     
-    create-Checkbox -Name "Transparent" -FromLeft 400 -FromTop 40 -AddTo $GPVideo
-    create-Label -Text "Transparent Video" -fromLeft 420 -fromTop 40 -AddTo $GPVideo
+    create-Checkbox -Name "Transparent" -FromLeft 390 -FromTop 40 -AddTo $GPVideo
+    create-Label -Text "Transparent Video" -fromLeft 410 -fromTop 40 -AddTo $GPVideo
 
     create-Label -Text "Enter Start Begin" -fromLeft 3 -fromTop 70 -AddTo $GPVideo
     create-Timepick -Name "StartBegin" -Text "00:00:00" -fromLeft 150 -fromTop 70 -AddTo $GPVideo
@@ -135,14 +135,34 @@ foreach($folder in $VideoFolders)
     create-Label -Text "Size of Videoparts (in s)" -fromLeft 3 -fromTop 160 -AddTo $GPVideo
     create-NumUpDown -Name "ClipLength" -Text 15 -fromLeft 280 -fromTop 160 -AddTo $GPVideo
 
+    create-Label -Text "Must have Szenen" -fromLeft 3 -fromTop 187 -AddTo $GPVideo
+    create-Label -Text "Beginn" -fromLeft 280 -fromTop 187 -AddTo $GPVideo
+    create-Label -Text "Ende" -fromLeft 420 -fromTop 187 -AddTo $GPVideo
+
+    create-Checkbox -Name "Szene1" -FromLeft 3 -FromTop 210 -AddTo $GPVideo
+    create-Label -Text "Szene 1" -fromLeft 23 -fromTop 210 -AddTo $GPVideo
+    create-Timepick -Name "Szene1Begin" -Text "00:00:00" -fromLeft 280 -fromTop 210 -AddTo $GPVideo
+    create-Timepick -Name "Szene1End" -Text "00:00:00" -fromLeft 420 -fromTop 210 -AddTo $GPVideo
+
+    create-Checkbox -Name "Szene2" -FromLeft 3 -FromTop 240 -AddTo $GPVideo
+    create-Label -Text "Szene 2" -fromLeft 23 -fromTop 240 -AddTo $GPVideo
+    create-Timepick -Name "Szene2Begin" -Text "00:00:00" -fromLeft 280 -fromTop 240 -AddTo $GPVideo
+    create-Timepick -Name "Szene2End" -Text "00:00:00" -fromLeft 420 -fromTop 240 -AddTo $GPVideo
+
+    create-Checkbox -Name "Szene3" -FromLeft 3 -FromTop 270 -AddTo $GPVideo
+    create-Label -Text "Szene 3" -fromLeft 23 -fromTop 270 -AddTo $GPVideo
+    create-Timepick -Name "Szene3Begin" -Text "00:00:00" -fromLeft 280 -fromTop 270 -AddTo $GPVideo
+    create-Timepick -Name "Szene3End" -Text "00:00:00" -fromLeft 420 -fromTop 270 -AddTo $GPVideo
+
     $main_form.Controls.Add($GPVideo)
     $GroupLocation = $GroupLocation + $GroupHeight
 }
 
 $main_form.Text ='Cyclevision Videostitcher'
 $main_form.AutoSize = $true
-$main_form.Width = 500
-$main_form.Height = 1000
+$main_form.Width = 720
+$main_form.Height = 720
+$main_form.AutoScroll = $true
 
 function BTNRUN()
 {
@@ -165,6 +185,16 @@ function BTNRUN()
                 LandingEnd = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "LandingEnd"}).Text
                 Increment = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "Increment"}).Text
                 ClipLength = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "ClipLength"}).Text
+                Szene1 = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "Szene1"}).Checked
+                Szene1Begin = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "Szene1Begin"}).Text
+                Szene1End = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "Szene1End"}).Text
+                Szene2 = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "Szene2"}).Checked
+                Szene2Begin = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "Szene2Begin"}).Text
+                Szene2End = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "Szene2End"}).Text
+                Szene3 = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "Szene3"}).Checked
+                Szene3Begin = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "Szene3Begin"}).Text
+                Szene3End = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "Szene3End"}).Text
+
             }
             create-Video @Dataoutput
         }
@@ -174,7 +204,7 @@ function BTNRUN()
 $BTNrun = New-Object System.Windows.Forms.Button
 $BTNrun.Size = New-Object System.Drawing.Size(120,23)
 $BTNrun.Text = "RUN"
-$BTNrun.Location = New-Object System.Drawing.Point(610,10)
+$BTNrun.Location = New-Object System.Drawing.Point(560,10)
 
 $BTNrun.Add_Click(
     {
