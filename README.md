@@ -138,6 +138,26 @@ C:\Cyclevision\2020.10.01\Frontview.mp4 | Path to the Videofile I wanted to anal
 
 ## Solid Video Overlay
 
+Create an Overlay with a Solid video works different than creating an overlay with lowered opacity. 
+
+ffmpeg.exe -i D:\Cyclevision\2021.01.08.1\2021-01-08-Frontview.mp4 -itsoffset 00:00:02.000 -i D:\Cyclevision\2021.01.08.1\2021-01-08-Backview.mp4 -filter_complex "[1:v] scale=550:-1 [bs]; [0][bs] overlay=10:760" -filter:a loudnorm -vcodec libx265 -crf 28 D:\Cyclevision\2021.01.08.1\2021-01-08-solid.mp4 -hwaccel cuda -hwaccel_output_format cuda -y
+
+Command | Explanation 
+------- | -----------
+-i D:\Cyclevision\2021.01.08.1\2021-01-08-Frontview.mp4 | Input 0 FrontVideo
+-itsoffset 00:00:02.000 | Delay Input 1 by 2 Seconds
+-i D:\Cyclevision\2021.01.08.1\2021-01-08-Backview.mp4 | Input 1 BackVideo
+-filter_complex " | Start Filter Complex
+[1:v] scale=550:-1 [bs], | Scale down Video 1 to 550 width and a matching height
+[0][bs] overlay=10:760 | Overlay resized Video over Video 0
+-filter:a loudnorm | Filter audio to cut off highest peaks
+-vcodec libx265 | set output to X265
+-crf 28 | Quality of Output
+D:\Cyclevision\2021.01.08.1\2021-01-08-solid.mp4 | Output Path
+-hwaccel cuda | use CUDA 
+-hwaccel_output_format cuda | use Cuda for Output
+-y | overwrite Output
+
 ## Short Video Summary
 
 The ShortVideo takes out multiple parts of the Input and cut them together. 
