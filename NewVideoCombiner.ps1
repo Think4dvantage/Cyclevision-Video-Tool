@@ -47,12 +47,6 @@ function create-Video {
         $outputtrans = ($Path + "\" + $Date + "-trans.mp4")
         #OutputSolid
         $outputsolid = ($Path + "\" + $Date + "-solid.mp4")
-        
-        $StartBegin = [int]([timespan]$StartBegin).TotalSeconds
-        $StartEnd = [int]([timespan]$StartEnd).TotalSeconds
-        $LandingBegin = [int]([timespan]$LandingBegin).TotalSeconds
-        $LandingEnd = [int]([timespan]$LandingEnd).TotalSeconds
-        $Increment = [int]([timespan]$Increment).TotalSeconds
 
         function createInputfile($Path, $View)
         {
@@ -101,6 +95,12 @@ function create-Video {
             return 
         }
 
+        $StartBegin = [int]([timespan]$StartBegin).TotalSeconds
+        $StartEnd = [int]([timespan]$StartEnd).TotalSeconds
+        $LandingBegin = [int]([timespan]$LandingBegin).TotalSeconds
+        $LandingEnd = [int]([timespan]$LandingEnd).TotalSeconds
+        $Increment = [int]([timespan]$Increment).TotalSeconds
+
         $tmpfront = ($path + "\frontlen")
         $tmpback = ($path + "\backlen")
         write-host "getting FronViewSize"
@@ -146,8 +146,6 @@ function create-Video {
         }
 
         write-host ("videooffset2 ist: " + $videoOffset)
-        write-host "Starting ShortVideo"
-
 
         if($Short -eq $true -and !(test-path $outputshort))
         {
@@ -159,7 +157,6 @@ function create-Video {
             }
             write-host "Starting to Create Arguments"
             $ffmpegarguments = ("-i $frontout -i $backout -filter_complex " + [char]34 + "[1]trim="+ ($startBegin-$VideoOffset) + ":" + ($StartEnd-$VideoOffset) +",setpts=PTS-STARTPTS[bs],[bs]scale=550:-1[bso];[0]atrim=" + $StartBegin + ":" + $StartEnd + ",asetpts=PTS-STARTPTS[ap1],[0]trim=" + $StartBegin + ":" + $StartEnd + ",setpts=PTS-STARTPTS[fv],[fv][bso] overlay=10:760[p1],")
-            $parts = 1
             [int[]]$ClipsBegin = @()
             [int[]]$ClipsEnd = @()
             if($Szene1 -eq $true)
@@ -241,6 +238,23 @@ function create-Video {
             write-host "ShortVideo has ended" -BackgroundColor Green -ForegroundColor Black
         }#End ShortVideo
         
+        if($Solid -eq $true -and !(test-path $outputsolid))
+        {
+            #Prepare FFMPEG Arguments to Blend the two videos together
+            $ffmpegarguments = ("-i $frontout -itsoffset 00:00:0$VideoOffset -i $backout -filter_complex " + [char]34 + "[1:v] scale=550:-1 [bs]; [0][bs] overlay=10:760" + [char]34 + " -filter:a loudnorm -vcodec libx265 -crf 28 $outputsolid -hwaccel cuda -hwaccel_output_format cuda -y")
+                        
+            #Blend FrontView and Backview together
+            start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
+        }#End Solid
+
+        if($Transparent -eq $true -and !(test-path $outputtrans))
+        {
+            #Prepare FFMPEG Arguments to Blend the two videos together
+            $ffmpegarguments = ("-i $frontout -itsoffset 00:00:0$VideoOffset -i $backout -filter_complex " + [char]34 + "[1:v] scale=550:-1, pad=1920:1080:ow-iw-1360:oh-ih-10, setsar=sar=1, format=rgba [bs]; [0:v] setsar=sar=1, format=rgba [fb]; [fb][bs] blend=all_mode=addition:all_opacity=0.7" + [char]34 + " -filter:a loudnorm -vcodec libx265 -crf 28 $outputtrans -hwaccel cuda -hwaccel_output_format cuda -y")
+            
+            #Blend FrontView and Backview together
+            start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
+        }#End Transparent
 
     }#End Process
     

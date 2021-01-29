@@ -69,17 +69,7 @@ foreach($Folder in $VideoFolders)
     $StitchIt = @{
         Date = $tag
         Path = $Folder.FullName
-        Skip = $false
         Stitch = $true
-        Short = $false
-        Solid = $false
-        Transparent = $false
-        StartBegin = "00:00:00"
-        StartEnd = "00:00:00"
-        LandingBegin = "00:00:00"
-        LandingEnd = "00:00:00"
-        Increment = "00:00:00"
-        ClipLength = "15"
     }
     create-Video @StitchIt
 }
