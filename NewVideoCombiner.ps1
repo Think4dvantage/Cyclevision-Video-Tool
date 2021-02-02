@@ -229,7 +229,7 @@ function create-Video {
             {
                 $ffmpegarguments = ($ffmpegarguments + "[p" + $i + "][ap" + $i + "]")
             }
-            $ffmpegarguments = ($ffmpegarguments + "concat=n=" + $ClipsBegin.Count + ":v=1:a=1[out][aout]" + [char]34 + " -map " + [char]34 + "[out]" + [char]34 + " -map " + [char]34 + "[aout]" + [char]34 +" $outputshort -filter:a loudnorm -hwaccel cuda -hwaccel_output_format cuda -y")
+            $ffmpegarguments = ($ffmpegarguments + "concat=n=" + $ClipsBegin.Count + ":v=1:a=1[out][aout]" + [char]34 + " -map " + [char]34 + "[out]" + [char]34 + " -map " + [char]34 + "[aout]" + [char]34 +" $outputshort -af " + [char]34 +"highpass=f=300, lowpass=f=2000, loudnorm" + [char]34 + " -hwaccel cuda -hwaccel_output_format cuda -y")
             
             $VidLength = [timespan]::fromseconds([int]($StartEnd - $StartBegin) + ((($LandingBegin - $StartEnd)/$Increment)*15) + ($LandingEnd - $LandingBegin))
             Write-Host ($Date + " - The Video will be approximately " + $VidLength.ToString("hh\:mm\:ss") + " Long:") -BackgroundColor Yellow -ForegroundColor Black
@@ -241,7 +241,7 @@ function create-Video {
         if($Solid -eq $true -and !(test-path $outputsolid))
         {
             #Prepare FFMPEG Arguments to Blend the two videos together
-            $ffmpegarguments = ("-i $frontout -itsoffset 00:00:0$VideoOffset -i $backout -filter_complex " + [char]34 + "[1:v] scale=550:-1 [bs]; [0][bs] overlay=10:760" + [char]34 + " -filter:a loudnorm -vcodec libx265 -crf 28 $outputsolid -hwaccel cuda -hwaccel_output_format cuda -y")
+            $ffmpegarguments = ("-i $frontout -itsoffset 00:00:0$VideoOffset -i $backout -filter_complex " + [char]34 + "[1:v] scale=550:-1 [bs]; [0][bs] overlay=10:760" + [char]34 + " -af " + [char]34 +"highpass=f=300, lowpass=f=2000, loudnorm" + [char]34 + " -vcodec libx265 -crf 28 $outputsolid -hwaccel cuda -hwaccel_output_format cuda -y")
                         
             #Blend FrontView and Backview together
             start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
@@ -250,7 +250,7 @@ function create-Video {
         if($Transparent -eq $true -and !(test-path $outputtrans))
         {
             #Prepare FFMPEG Arguments to Blend the two videos together
-            $ffmpegarguments = ("-i $frontout -itsoffset 00:00:0$VideoOffset -i $backout -filter_complex " + [char]34 + "[1:v] scale=550:-1, pad=1920:1080:ow-iw-1360:oh-ih-10, setsar=sar=1, format=rgba [bs]; [0:v] setsar=sar=1, format=rgba [fb]; [fb][bs] blend=all_mode=addition:all_opacity=0.7" + [char]34 + " -filter:a loudnorm -vcodec libx265 -crf 28 $outputtrans -hwaccel cuda -hwaccel_output_format cuda -y")
+            $ffmpegarguments = ("-i $frontout -itsoffset 00:00:0$VideoOffset -i $backout -filter_complex " + [char]34 + "[1:v] scale=550:-1, pad=1920:1080:ow-iw-1360:oh-ih-10, setsar=sar=1, format=rgba [bs]; [0:v] setsar=sar=1, format=rgba [fb]; [fb][bs] blend=all_mode=addition:all_opacity=0.7" + [char]34 + " -af " + [char]34 +"highpass=f=300, lowpass=f=2000, loudnorm" + [char]34 + " -vcodec libx265 -crf 28 $outputtrans -hwaccel cuda -hwaccel_output_format cuda -y")
             
             #Blend FrontView and Backview together
             start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
