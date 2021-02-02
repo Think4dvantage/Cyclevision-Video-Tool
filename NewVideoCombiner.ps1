@@ -260,6 +260,7 @@ function create-Video {
     
 }
 
+
 write-host "NewVideoCombiner imported"
 
 <#
@@ -280,4 +281,13 @@ $DO = @{
 
 
 create-Video @DO
+#>
+
+
+<#
+    Further Steps: 
+        - use StartBegin and Landing End to cut Tranparent and Solid Video to the Essential Parts
+        - New Function to just add the Start with Backview and rest withouth Backview (like in ShortVideo)
+        - Create Alternative GUI to not only focus on Paragliding
+        - Also prepare the GUI for non-Cyclevision Video files/Video data withouth a Backview
 #>
