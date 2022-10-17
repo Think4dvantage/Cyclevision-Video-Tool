@@ -55,32 +55,34 @@ Add-Type -assembly System.Windows.Forms
 
 #Getting Input on where the VideoFiles have been stored
 $FolderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
-$FolderBrowser.SelectedPath = "D:\Cyclevision"
+$FolderBrowser.SelectedPath = "D:\"
 $null = $FolderBrowser.ShowDialog()
-$SourcePath = $FolderBrowser.SelectedPath
-$VideoFolders = get-childitem -Path $SourcePath -Directory
+$VideoFolder = $FolderBrowser.SelectedPath
+$VideosInFolder = Get-ChildItem -path $VideoFolder -File -Include "VID_202*.mp4","202?-*.mp4"
 
 #Stitchstuff
+<#
 $StitchIt = @()
-foreach($Folder in $VideoFolders)
+foreach($File in $VideosInFolder)
 {
-    $tag = $folder.Name.Replace(".","")
+    $tag = $file.Name.Replace(".","")
     
     $StitchIt = @{
         Date = $tag
-        Path = $Folder.FullName
+        Path = $File.FullName
         Stitch = $true
     }
     create-Video @StitchIt
 }
+#>
 
 $main_form = New-Object System.Windows.Forms.Form
 $GroupLocation = 0
 $GroupHeight = 310
 
-foreach($folder in $VideoFolders)
+foreach($video in $VideosInFolder)
 {
-    $tag = $folder.Name.Replace(".","")
+    $tag = $video.Name
     $GPVideo = New-Object System.Windows.Forms.GroupBox
     $GPVideo.Name = ("GP" + $tag)
     $GPVideo.Width = 550
@@ -89,7 +91,7 @@ foreach($folder in $VideoFolders)
     $GPVideo.Location = New-Object System.Drawing.Point(3,$GroupLocation)
     
     $LBTitle = New-Object System.Windows.Forms.Label
-    $LBTitle.Text = $folder.Name
+    $LBTitle.Text = $video.Name
     $LBTitle.Location = New-Object System.Drawing.Point(1,10)
     $LBTitle.font = New-Object System.Drawing.Font("Times New Roman",18,[System.Drawing.FontStyle]::Bold)
     $LBTitle.AutoSize = $true
@@ -98,14 +100,8 @@ foreach($folder in $VideoFolders)
     create-Checkbox -Name "Skip" -fromLeft 3 -FromTop 40 -AddTo $GPVideo
     create-Label -Text "Skip this" -FromLeft 20 -FromTop 40 -AddTo $GPVideo
     
-    create-Checkbox -Name "Short" -FromLeft 140 -FromTop 40 -AddTo $GPVideo
-    create-Label -Text "Short Video" -fromLeft 160 -fromTop 40 -AddTo $GPVideo
-    
-    create-Checkbox -Name "Solid" -FromLeft 270 -FromTop 40 -AddTo $GPVideo
-    create-Label -Text "Solid Video" -fromLeft 290 -fromTop 40 -AddTo $GPVideo
-    
-    create-Checkbox -Name "Transparent" -FromLeft 390 -FromTop 40 -AddTo $GPVideo
-    create-Label -Text "Transparent Video" -fromLeft 410 -fromTop 40 -AddTo $GPVideo
+    #create-Checkbox -Name "Short" -FromLeft 140 -FromTop 40 -AddTo $GPVideo
+    #create-Label -Text "Short Video" -fromLeft 160 -fromTop 40 -AddTo $GPVideo
 
     create-Label -Text "Enter Start Begin" -fromLeft 3 -fromTop 70 -AddTo $GPVideo
     create-Timepick -Name "StartBegin" -Text "00:00:00" -fromLeft 150 -fromTop 70 -AddTo $GPVideo
@@ -148,7 +144,7 @@ foreach($folder in $VideoFolders)
     $GroupLocation = $GroupLocation + $GroupHeight
 }
 
-$main_form.Text ='Cyclevision Videostitcher'
+$main_form.Text ='PS Video Aggregator'
 $main_form.AutoSize = $true
 $main_form.Width = 720
 $main_form.Height = 720
@@ -166,9 +162,7 @@ function BTNRUN()
                 Path = $Folder.FullName
                 Skip = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "Skip"}).Checked
                 Stitch = $false
-                Short = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "Short"}).Checked
-                Solid = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "Solid"}).Checked
-                Transparent = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "Transparent"}).Checked
+                #Short = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "Short"}).Checked
                 StartBegin = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "StartBegin"}).Text
                 StartEnd = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "StartEnd"}).Text
                 LandingBegin = (($main_form.Controls | where-object {$_.Name -eq ("GP" + $tag)}).Controls | where-object {$_.Name -like "LandingBegin"}).Text

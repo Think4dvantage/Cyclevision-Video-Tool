@@ -39,14 +39,8 @@ function create-Video {
         $ffmpegProbePath = $PSScriptRoot + "\ffmpeg\ffprobe.exe"
         #Path to the Output of the Stitching of FrontParts
         $frontOut = ($Path + "\" + $Date + "-Frontview.mp4")
-        #Path to the Output of the Stitching of BackParts
-        $backOut = ($Path + "\" + $Date + "-BackView.mp4")
         #Path to the Output of the Short Video
         $outputshort = $Path + "\" + $Date + "-short.mp4"
-        #Transparent Video Output
-        $outputtrans = ($Path + "\" + $Date + "-trans.mp4")
-        #OutputSolid
-        $outputsolid = ($Path + "\" + $Date + "-solid.mp4")
 
         function createInputfile($Path, $View)
         {
@@ -67,19 +61,16 @@ function create-Video {
         $InputFilePath = ($Path + "\PartList.txt")
 
         #Check if Fronview and Backview Video have been Stitched together - if they are skip this Step
-        if(!(test-path -path $frontout) -and !(test-path -path $backout))
+        if(!(test-path -path $frontout))
         {
             #Trigger createInputFunction and write output to InputFilePath
             set-content -path $InputFilePath -Value (createInputfile $Path "F")
             #Stitch together all MP4 Files mentioned in the Input File Path
             start-process -FilePath $ffmpegPath -ArgumentList "-f concat -safe 0 -i $InputFilePath -c copy $frontOut -y" -PassThru -Wait -NoNewWindow
             #Trigger createInputFunction to get Backview Parts and write it to InputFile
-            set-content -path $InputFilePath -Value (createInputfile $Path "B")
-            #Stitch together the Rearview Input Files to one Big video
-            start-process -FilePath $ffmpegPath -ArgumentList "-f concat -safe 0 -i $InputFilePath -c copy $backOut -y" -PassThru -Wait -NoNewWindow
-
+            
             #Test if FrontView and Backview Video exist - if they exist delete the Sourcevideos
-            if((test-path -path $frontout) -and (test-path -path $backout))
+            if((test-path -path $frontout))
             {
                 Remove-Item -Path ($Path + "\*") -Exclude ($Date + "*") -Recurse -Force
             }
@@ -102,50 +93,16 @@ function create-Video {
         $Increment = [int]([timespan]$Increment).TotalSeconds
 
         $tmpfront = ($path + "\frontlen")
-        $tmpback = ($path + "\backlen")
-        write-host "getting FronViewSize"
+        write-host "getting VideoSize"
         start-process -FilePath $ffmpegProbePath -ArgumentList ("-v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 " + $frontOut) -NoNewWindow -RedirectStandardOutput $tmpfront
-        write-host "getting Backviewsize"
-        start-process -FilePath $ffmpegProbePath -ArgumentList ("-v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 " + $BackOut) -NoNewWindow -RedirectStandardOutput $tmpback
         start-sleep -seconds 1
         $frontViewSize = get-content -Path $tmpfront
-        $BackViewSize = get-content -Path $tmpback
-        if($frontViewSize -and $backviewSize)
+        if($frontViewSize)
         {
             remove-item -path $tmpfront
-            remove-item -path $tmpback
         }
         #Create Value of Offset as a string to use it in the Arguments of the Blending Command
-        write-host $BackviewSize
         write-host $frontviewSize
-        if($BackViewSize -eq $frontViewSize -and $BackviewSize -gt 0 -and $Fronviewsize -gt 0)
-        {
-            Write-Host "Videos are of the same Length - no Offset needed!"
-            $VideoOffset = "0.000"
-        }
-        else 
-        {
-            $VideoOffset = ($FrontViewSize - $BackViewSize).toString("#.###")
-        }
-        write-host ("videooffset1 ist: " + $videoOffset)
-        #Make sure VideoOffset has 3 digits after the Comma 
-        
-        if($videoOffset -like "-*")
-        {
-            $videoOffset = "2.000"
-        }
-        
-        if($VideoOffset.Length -ne 5)
-        {
-            switch ($VideoOffset.Length) {
-                4 { $VideoOffset = $VideoOffset + "0" }
-                3 { $VideoOffset = $VideoOffset + "00" }
-                1 { $VideoOffset = $VideoOffset + ".000" }
-                Default {$VideoOffset = "2.000" }
-            }
-        }
-
-        write-host ("videooffset2 ist: " + $videoOffset)
 
         if($Short -eq $true -and !(test-path $outputshort))
         {
@@ -237,24 +194,6 @@ function create-Video {
             start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
             write-host "ShortVideo has ended" -BackgroundColor Green -ForegroundColor Black
         }#End ShortVideo
-        
-        if($Solid -eq $true -and !(test-path $outputsolid))
-        {
-            #Prepare FFMPEG Arguments to Blend the two videos together
-            $ffmpegarguments = ("-i $frontout -itsoffset 00:00:0$VideoOffset -i $backout -filter_complex " + [char]34 + "[1:v] scale=550:-1 [bs]; [0][bs] overlay=10:760" + [char]34 + " -af " + [char]34 +"highpass=f=300, lowpass=f=2000, loudnorm" + [char]34 + " -vcodec libx265 -crf 28 $outputsolid -hwaccel cuda -hwaccel_output_format cuda -y")
-                        
-            #Blend FrontView and Backview together
-            start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
-        }#End Solid
-
-        if($Transparent -eq $true -and !(test-path $outputtrans))
-        {
-            #Prepare FFMPEG Arguments to Blend the two videos together
-            $ffmpegarguments = ("-i $frontout -itsoffset 00:00:0$VideoOffset -i $backout -filter_complex " + [char]34 + "[1:v] scale=550:-1, pad=1920:1080:ow-iw-1360:oh-ih-10, setsar=sar=1, format=rgba [bs]; [0:v] setsar=sar=1, format=rgba [fb]; [fb][bs] blend=all_mode=addition:all_opacity=0.7" + [char]34 + " -af " + [char]34 +"highpass=f=300, lowpass=f=2000, loudnorm" + [char]34 + " -vcodec libx265 -crf 28 $outputtrans -hwaccel cuda -hwaccel_output_format cuda -y")
-            
-            #Blend FrontView and Backview together
-            start-process -FilePath $ffmpegPath -ArgumentList $ffmpegarguments -PassThru -wait -nonewWindow
-        }#End Transparent
 
     }#End Process
     
@@ -262,32 +201,3 @@ function create-Video {
 
 
 write-host "NewVideoCombiner imported"
-
-<#
-$DO = @{
-    Date = "202008074"
-    Path = "D:\Cyclevision\2020.08.07.4"
-    Stitch = $false
-    Short = $true
-    Solid = $false
-    Transparent = $false
-    StartBegin = "00:00:10"
-    StartEnd = "00:01:11"
-    LandingBegin = "00:02:10"
-    LandingEnd = "00:02:40"
-    Increment = "00:00:30"
-    ClipLength = "15"
-}
-
-
-create-Video @DO
-#>
-
-
-<#
-    Further Steps: 
-        - use StartBegin and Landing End to cut Tranparent and Solid Video to the Essential Parts
-        - New Function to just add the Start with Backview and rest withouth Backview (like in ShortVideo)
-        - Create Alternative GUI to not only focus on Paragliding
-        - Also prepare the GUI for non-Cyclevision Video files/Video data withouth a Backview
-#>
