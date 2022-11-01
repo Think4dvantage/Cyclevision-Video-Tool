@@ -47,15 +47,17 @@ foreach($Video in $VideoFiles)
             create-Timepick "ResultLength" "00:05:00" 200 23 $form
             create-label "Select Increment Length:" 3 43 $form
             create-Timepick "Increment" "00:00:10" 200 43 $form
-            $short_btn = create-button "Run Shortener" 300 23 200 63 $form
+            $short_btn = (create-button "Run Shortener" 300 23 200 63 $form)
             $short_btn.add_click(
                 {
                     $Increment = ($form.Controls | where-object {$_.Name -like "Increment"}).Text
                     $ResultLength = ($form.Controls | where-object {$_.Name -like "ResultLength"}).Text
                     create-shortVid $Video.FullName $Increment $ResultLength
+                    write-host $short_btn 
                 }
-            )
             
+            )
+            $short_btn = 0
             $form.ShowDialog()           
         }
                     
