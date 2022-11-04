@@ -17,6 +17,7 @@ function create-Label($Text, $fromLeft, $fromTop, $AddTo)
     $LB.Location  = New-Object System.Drawing.Point($fromLeft,$fromTop)
     $LB.AutoSize = $true
     $AddTo.Controls.Add($LB)
+    return $LB
 }
 
 function create-Timepick($Name, $Text, $fromLeft, $fromTop, $AddTo)
@@ -64,22 +65,4 @@ function create-GroupBox($Name, $Height, $fromLeft, $fromTop,$addTo)
     $GP.Font = New-Object System.Drawing.Font("Times New Roman",12)
     $GP.Location = New-Object System.Drawing.Point($fromLeft,$fromTop)
     $addTo.Controls.Add($GP)
-}
-
-function create-shortVid($Path, $Increment, $ResultLength)
-{
-    write-host ("Path " + $Path)
-    write-host ("Increment " + $Increment)
-    write-host ("ResultLength " + $ResultLength)
-
-    $Parts = [int]([timespan]$ResultLength).TotalSeconds/[int]([timespan]$Increment).TotalSeconds
-    write-host ("Number of Parts needed from Video: " + $Parts)
-
-    #get Length of Video
-    start-process -FilePath ($PSScriptRoot+"\ffmpeg\ffprobe.exe") -ArgumentList ("-v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 " + $path) -NoNewWindow -RedirectStandardOutput ($PSScriptRoot +"\length.txt") -PassThru -Wait
-    $VideoLength = (get-content ($PSScriptRoot +"\length.txt")).Split(".")[0]
-    remove-item ($PSScriptRoot +"\length.txt")
-    write-host ("Video Length is: " + $VideoLength)
-    write-host ("Increment between parts = " + ($VideoLength / $Parts))
-
 }
